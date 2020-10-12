@@ -154,7 +154,7 @@ def write_html_report(fname, date_range=None):
     html += f'<div id="{div_id_accumulated_cases}" style="width: {width}px; height: {height}px"></div>\n'
 
     for key in used_rolling_means:
-        html += f"<p>{DESCRIPTIONS['incidencia_acumulada']}</p>\n"
+        html += f"<p>{DESCRIPTIONS[key]}</p>\n"
         div_id = div_ids[key]
         html += f'<div id="{div_id}" style="width: {width}px; height: {height}px"></div>\n'
 
