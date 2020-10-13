@@ -1,14 +1,18 @@
 
 from pathlib import Path
 
-BASE_DIR = Path('/home/jose/devel/covid_situation/')
-DATADISTA_DIR = BASE_DIR / 'timestamped_datasets'
-DATADISTA_TIMESTAMPS_TO_EXCLUDE = [1591817222]
-DOWNLOADED_DATASETS_DIR = BASE_DIR / 'downloaded_datasets'
+HOME_DIR = Path.home()
+
+BASE_DIR = HOME_DIR / 'devel/covid_situation/'
 
 PLOT_DIR = BASE_DIR / 'plots'
 
-MINISTRY_REPORTS_DIR = BASE_DIR / 'informes_ministerio'
+DOWNLOADS_DIR = BASE_DIR / 'downloaded_reports'
+
+MINISTRY_REPORTS_DIR = DOWNLOADS_DIR / 'ministry_reports'
+DECEASED_EXCEL_DIR = DOWNLOADS_DIR / 'ministry_deceased_excel'
+CCAA_CSV_DIR = DOWNLOADS_DIR / 'carlos_iii_ccaa_csvs'
+PROVINCE_CSV_DIR = DOWNLOADS_DIR / 'carlos_iii_province_csvs'
 
 MINISTRY_REPORTS_TO_SKIP = ['Actualizacion_137_COVID-19']
 CACHE_DIR = BASE_DIR / 'caches'

@@ -125,20 +125,9 @@ def get_ccaa_dataset(path, ccaa_column):
     return result
 
 
-def get_ccaa_datadista_info(timestamps_to_exclude=config.DATADISTA_TIMESTAMPS_TO_EXCLUDE):
-
-    for path in config.DATADISTA_DIR.iterdir():
-        if str(path).startswith('.~lock'):
-            continue
-        timestamp = int(path.stem.split('.')[0])
-        if timestamp in timestamps_to_exclude:
-            continue
-        yield get_ccaa_dataset(path, ccaa_column='ccaa')
-
-
 def get_downloaded_ccaa_info():
     
-    for path in config.DOWNLOADED_DATASETS_DIR.iterdir():
+    for path in config.CCAA_CSV_DIR.iterdir():
         if 'ccaa' not in str(path):
             continue
         if path.stem.startswith('.~lock'):

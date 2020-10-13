@@ -145,6 +145,7 @@ def _parse_report_1(pdf_path):
     assert ccaas[0] == 'Andalucía'
     assert ccaas[-1] == 'La Rioja'
 
+
     if 'Tabla 3. PCR procesadas' in text:
         columns = _extract_number_columns(text, 'ESPA', 'CCAA')
     else:
@@ -164,7 +165,7 @@ def _parse_report_1(pdf_path):
     return {'date': date, 'hospitalizacion_y_fallecidos': table}
 
 
-def _parse_report_2(pdf_path, left, width, top, height):
+def _parse_report_2(pdf_path, left, width, top, height, debug=False):
     print(pdf_path)
     text = high_level.extract_text(pdf_path.open('rb'), page_numbers=[0])
     date_start = text.find('horas del') + 10
@@ -180,7 +181,7 @@ def _parse_report_2(pdf_path, left, width, top, height):
     table = tabula.read_pdf(pdf_path, pages=[2], area=(top, left, height, width),
                             output_format='dataframe', multiple_tables=False,
                             pandas_options=pandas_options)[0]
-
+    print(table)
     if list(table.index)[-1].startswith('ESPA'):
         table = table.reindex(list(table.index)[:-1])
 
@@ -197,7 +198,13 @@ def parse_report(path):
         new_report = False
     else:
         report_num = int(path.stem.split('_')[1])
-        if report_num in [168, 169, 174, 177, 178, 179, 180]:
+        if report_num >= 226:
+            left = 80
+            width = 810
+            height = 450
+            top = 180
+            report = _parse_report_2(path, left, width, top, height)
+        elif report_num in [168, 169, 174, 177, 178, 179, 180]:
             left = 80
             width = 810
             height = 430
@@ -273,6 +280,8 @@ def get_ministry_cum_data(report_paths, skip_reports_with_empty_rows=False):
         except EmptyRowError:
             if skip_reports_with_empty_rows:
                 continue
+            else:
+                raise
         
         hospitalized[result['date']] = result['hospitalizacion_y_fallecidos']['hospitalizacion_total']
         icu[result['date']] = result['hospitalizacion_y_fallecidos']['uci_total']
@@ -342,7 +351,7 @@ def get_incremental_table_from_cum_table(cum_table):
 
 def get_ministry_incremental_data(skip_reports_with_empty_rows=False):
     report_paths = get_ministry_valid_reports()
-    cum_data = get_ministry_cum_data(report_paths, skip_reports_with_empty_rows=True)
+    cum_data = get_ministry_cum_data(report_paths, skip_reports_with_empty_rows=False)
     incr_data = {key: get_incremental_table_from_cum_table(this_cum_data) for key, this_cum_data in cum_data.items()}
     return incr_data
 
@@ -368,7 +377,7 @@ if __name__ == '__main__':
     #result = parse_report(config.MINISTRY_REPORTS_DIR/ 'Actualizacion_214_COVID-19.pdf')
     #print(result['hospitalizacion_y_fallecidos'])
     report_paths = get_ministry_valid_reports()
-    cum_data = get_ministry_cum_data(report_paths, skip_reports_with_empty_rows=True)
+    cum_data = get_ministry_cum_data(report_paths, skip_reports_with_empty_rows=False)
     print(cum_data.keys())
     incr_data = get_incremental_table_from_cum_table(cum_data['deceased'])
     print(incr_data)
