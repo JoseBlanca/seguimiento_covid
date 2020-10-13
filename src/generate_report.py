@@ -87,11 +87,24 @@ def _create_js_chart(dframe, date_range, js_function_name, div_id, title, width,
     return html
 
 
+def _write_table_from_series(series):
+    html = '<table>'
+    for index, value in zip(series.index, series.values):
+        html += f'<tr><td>{index}</td><td>{value}</td></tr>\n'
+    html += '</table>'
+    return html
+
+
 def write_html_report(fname, date_range=None):
 
     ccaa_info = data_sources.get_sorted_downloaded_ccaa_info()
     report = ccaa_info[-1]
     accumulaed_incidence = calc_accumulated_indicende_per_ccaa(report)
+
+    deaths = sorted(ministry_datasources.read_deceased_excel_ministry_files(),
+                    key=lambda x: x['last_date'])[-1]
+
+    #deaths_dframe = deaths['dframe']
 
     one_accumulated_incidence = list(accumulaed_incidence.values())[0]
 
@@ -149,6 +162,19 @@ def write_html_report(fname, date_range=None):
                                  height=height)
 
     html += '    </script>\n  </head>\n  <body>\n'
+
+    today = datetime.datetime.now()
+    html += f'<p>Informe generado el día: {today.day}-{today.month}-{today.year}</p>'
+
+    tot_deaths = deaths['dframe'].values.sum() + deaths['unassinged_deaths']
+    html += f'<p>Número total de fallecidos: {tot_deaths}</p>'
+
+    deaths_per_ccaa = deaths['dframe'].sum(axis=1)
+    populations = [data_sources.get_population(ccaa) for ccaa in deaths_per_ccaa.index]
+    populations = pandas.Series(populations, index=deaths_per_ccaa.index)
+    death_rate = (populations / deaths_per_ccaa).round().sort_values().astype(int)
+    html += '<p>¿Una de cada cuántas personas han fallecido por comunidad autónoma?</p>'
+    html += _write_table_from_series(death_rate)
 
     html += f"<p>{DESCRIPTIONS['incidencia_acumulada']}</p>\n"
     html += f'<div id="{div_id_accumulated_cases}" style="width: {width}px; height: {height}px"></div>\n'

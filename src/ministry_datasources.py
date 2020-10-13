@@ -1,4 +1,5 @@
 
+from ast import parse
 from functools import partial
 
 import config
@@ -8,6 +9,8 @@ import pickle, gzip
 
 import numpy
 import pandas
+
+import xlrd
 
 from pdfminer import high_level
 import tabula
@@ -369,7 +372,30 @@ def get_ministry_rolling_mean(num_days=7):
     return rolling_means
 
 
+def _read_deaths_to_assing(path):
+    sheet = xlrd.open_workbook(path).sheet_by_index(0)
+    text = str(sheet.cell(sheet.nrows - 1, 0))
+    if not 'fecha de defunción en' in text:
+        raise RuntimeError('Unknown unassinged deaths format')
+    return int(text[text.index('fecha de defunción en') + 22:].split()[0])
+
+
+def read_deceased_excel_ministry_files():
+    for path in config.DECEASED_EXCEL_DIR.iterdir():
+        if not str(path).endswith('.xlsx'):
+            continue
+        dframe = pandas.read_excel(path, index_col=0, parse_dates=True, skipfooter=1).T
+        dframe = dframe.reindex(list(dframe.index)[:-1])
+        last_date = dframe.columns[-1]
+        unassinged_deaths = _read_deaths_to_assing(path)
+        yield {'dframe': dframe, 'last_date': last_date, 'unassinged_deaths': unassinged_deaths}
+
+
 if __name__ == '__main__':
+
+    read_deceased_excel_ministry_files()
+
+    assert False
     #report_paths = get_ministry_valid_reports()
     #cum_data = get_ministry_cum_data(report_paths[-2:])
     #result = parse_report(config.MINISTRY_REPORTS_DIR/ 'Actualizacion_213_COVID-19.pdf')
@@ -382,5 +408,4 @@ if __name__ == '__main__':
     incr_data = get_incremental_table_from_cum_table(cum_data['deceased'])
     print(incr_data)
 
-    assert False
     get_ministry_rolling_mean(num_days=7)
