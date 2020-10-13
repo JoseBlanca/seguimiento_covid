@@ -24,7 +24,7 @@ HEADER1 = '''<html>
 DESCRIPTIONS = {
 'incidencia_acumulada': 'Número de casos detectados en los 15 días anteriores por cien mil habitantes. Datos obtenidos de los informes del Carlos III.',
 'hospitalized': 'Número medio de hospitalizaciones por cien mil habitantes (media de 7 días). Datos obtenidos a partir de las cifras acumuladas que aparecen en los informes diarios del ministerio.',
-'deceased': 'Número medio de fallecidos por cien mil habitantes (media de 7 días). Datos obtenidos a partir de las cifras acumuladas que aparecen en los informes diarios del ministerio.',
+'deceased': 'Número medio de fallecidos por cien mil habitantes (media de 7 días). Datos obtenidos a partir del excel con datos de fallecidos diarios del ministerio.',
 }
 
 
@@ -104,8 +104,6 @@ def write_html_report(fname, date_range=None):
     deaths = sorted(ministry_datasources.read_deceased_excel_ministry_files(),
                     key=lambda x: x['last_date'])[-1]
 
-    #deaths_dframe = deaths['dframe']
-
     one_accumulated_incidence = list(accumulaed_incidence.values())[0]
 
     ccaas = sorted(accumulaed_incidence.keys())
@@ -148,7 +146,7 @@ def write_html_report(fname, date_range=None):
 
     rolling_means = ministry_datasources.get_ministry_rolling_mean()
 
-    used_rolling_means = ['hospitalized', 'deceased']
+    used_rolling_means = ['hospitalized']
 
     for key in used_rolling_means:
         dframe = rolling_means[key]
@@ -160,6 +158,20 @@ def write_html_report(fname, date_range=None):
                                  title=titles[key],
                                  width=width,
                                  height=height)
+
+    num_days = 7
+    key = 'deceased'
+    deaths_rolling_mean = deaths['dframe'].rolling(num_days, center=True, min_periods=num_days, axis=1).mean()
+    deaths_rolling_mean = deaths_rolling_mean.dropna(axis=1, how='all')
+    populations = [data_sources.get_population(ccaa) for ccaa in deaths_rolling_mean.index]
+    deaths_rolling_mean = deaths_rolling_mean.divide(populations, axis=0) * 1e5
+    html += _create_js_chart(deaths_rolling_mean, date_range=date_range,
+                             js_function_name=js_function_names[key],
+                             div_id=div_ids[key],
+                             title=titles[key],
+                             width=width,
+                             height=height)
+
 
     html += '    </script>\n  </head>\n  <body>\n'
 
@@ -183,6 +195,12 @@ def write_html_report(fname, date_range=None):
         html += f"<p>{DESCRIPTIONS[key]}</p>\n"
         div_id = div_ids[key]
         html += f'<div id="{div_id}" style="width: {width}px; height: {height}px"></div>\n'
+
+    key = 'deceased'
+    html += f"<p>{DESCRIPTIONS[key]}</p>\n"
+    div_id = div_ids[key]
+    html += f'<div id="{div_id}" style="width: {width}px; height: {height}px"></div>\n'
+
 
     html += '  </body>\n</html>'
 
