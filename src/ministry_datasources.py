@@ -184,7 +184,7 @@ def _parse_report_2(pdf_path, left, width, top, height, debug=False):
     table = tabula.read_pdf(pdf_path, pages=[2], area=(top, left, height, width),
                             output_format='dataframe', multiple_tables=False,
                             pandas_options=pandas_options)[0]
-    print(table)
+    # print(table)
     if list(table.index)[-1].startswith('ESPA'):
         table = table.reindex(list(table.index)[:-1])
 

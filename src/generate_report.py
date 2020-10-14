@@ -13,11 +13,19 @@ import material_line_chart
 import ministry_datasources
 
 
-HEADER1 = '''<html>
+HEADER = '''<html>
   <head>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript">
-      google.charts.load('current', {'packages':['line']});
+      google.charts.load('current', {'packages':['line', 'corechart', 'controls']});
+
+'''
+
+HEADER2 = '''<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart', 'controls']});
 
 '''
 
@@ -95,6 +103,33 @@ def _write_table_from_series(series):
     return html
 
 
+def _create_table_for_chart_from_dict(dict_data):
+    one_data = list(dict_data.values())[0]
+
+    ccaas = sorted(dict_data.keys())
+    dates = list(one_data.index)
+    table = []
+    for date in dates:
+        row = [date.date()]
+        for ccaa in ccaas:
+            row.append(dict_data[ccaa][date])
+        table.append(row)
+    return table, ccaas, dates
+
+
+def _create_table_for_chart_from_dframe(dframe):
+
+    ccaas = sorted(dframe.index)
+    dates = list(dframe.columns)
+    table = []
+    for date in dates:
+        row = [date.date()]
+        for ccaa in ccaas:
+            row.append(dframe.loc[ccaa, date])
+        table.append(row)
+    return table, ccaas, dates
+
+
 def write_html_report(fname, date_range=None):
 
     ccaa_info = data_sources.get_sorted_downloaded_ccaa_info()
@@ -104,33 +139,45 @@ def write_html_report(fname, date_range=None):
     deaths = sorted(ministry_datasources.read_deceased_excel_ministry_files(),
                     key=lambda x: x['last_date'])[-1]
 
-    one_accumulated_incidence = list(accumulaed_incidence.values())[0]
-
-    ccaas = sorted(accumulaed_incidence.keys())
-    dates = list(one_accumulated_incidence.index)
-    if date_range is not None:
-        dates = [date for date in dates if date > date_range[0] and date <= date_range[1]]
-
-    accumulated_incidence_table = []
-    for date in dates:
-        row = [date.date()]
-        for ccaa in ccaas:
-            row.append(accumulaed_incidence[ccaa][date])
-        accumulated_incidence_table.append(row)
+    accumulated_incidence_table, ccaas, dates = _create_table_for_chart_from_dict(accumulaed_incidence)
 
     out_path = config.PLOT_DIR / fname
-    html = HEADER1
+    html = HEADER
 
     js_function_name = 'drawAccumulatedCasesIncidence'
-    div_id_accumulated_cases = 'accumulated_cases_chart'
-    width = 900
-    height = 750
     columns = [('date', 'fecha')]
     columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
     title = 'Indicencia acumulada por 100.000 hab. (15 días)'
-    html += material_line_chart.create_chart_js(js_function_name, div_id_accumulated_cases, title,
-                                                columns, accumulated_incidence_table,
-                                                width=width, height=height)
+
+    width =900
+    height = 800
+    rangeslider_height = 50
+    js_sizes = {'dashboard': {'height': height + rangeslider_height, 'width': width},
+                'chart': {'height': height, 'width': width},
+                'rangeslider': {'height': rangeslider_height, 'width': 600},
+               }
+    div_sizes = {}
+    for html_element in js_sizes:
+        div_sizes[html_element] = {}
+        div_sizes[html_element]['height'] = f"{js_sizes[html_element]['height']}px"
+        div_sizes[html_element]['width'] = f"{js_sizes[html_element]['width']}px"
+
+    slider_config = {'column_controlled': 'fecha',
+                     'min_value': dates[0],
+                     'max_value': dates[-1],
+                     'min_init_value': date_range[0],
+                     'max_init_value': date_range[-1]}
+    div_ids_accumulated_cases = {'dashboard': 'accumulated_cases_dashboard',
+                                 'chart': 'accumulated_cases_chart',
+                                 'rangeslider': 'accumulated_cases_rangeslider'}
+
+    html += material_line_chart.create_chart_js_with_slider(js_function_name,
+                                                            slider_config,
+                                                            div_ids_accumulated_cases,
+                                                            title,
+                                                            columns,
+                                                            accumulated_incidence_table,
+                                                            sizes=js_sizes)
 
     js_function_names = {'hospitalized': 'drawHospitalized',
                          'icu': 'drawICU',
@@ -146,18 +193,28 @@ def write_html_report(fname, date_range=None):
 
     rolling_means = ministry_datasources.get_ministry_rolling_mean()
 
-    used_rolling_means = ['hospitalized']
+    div_ids_hospitalized = {'dashboard': 'hospitalized_dashboard',
+                            'chart': 'hospitalized_chart',
+                            'rangeslider': 'hospitalized_rangeslider'}
+    div_ids_deceased = {'dashboard': 'deceased_dashboard',
+                        'chart': 'deceased_chart',
+                        'rangeslider': 'deceased_rangeslider'}
+    div_ids = {'hospitalized': div_ids_hospitalized,
+               'deceased': div_ids_deceased,
+              }
 
-    for key in used_rolling_means:
-        dframe = rolling_means[key]
-        populations = [data_sources.get_population(ccaa) for ccaa in dframe.index]
-        dframe = dframe.divide(populations, axis=0) * 1e5
-        html += _create_js_chart(dframe, date_range=date_range,
-                                 js_function_name=js_function_names[key],
-                                 div_id=div_ids[key],
-                                 title=titles[key],
-                                 width=width,
-                                 height=height)
+    dframe = rolling_means['hospitalized']
+    populations = [data_sources.get_population(ccaa) for ccaa in dframe.index]
+    dframe = dframe.divide(populations, axis=0) * 1e5
+    table, _, _ = _create_table_for_chart_from_dframe(dframe)
+    key = 'hospitalized'
+    html += material_line_chart.create_chart_js_with_slider(js_function_names[key],
+                                                            slider_config,
+                                                            div_ids[key],
+                                                            title=titles[key],
+                                                            columns=columns,
+                                                            data_table=table,
+                                                            sizes=js_sizes)
 
     num_days = 7
     key = 'deceased'
@@ -165,16 +222,17 @@ def write_html_report(fname, date_range=None):
     deaths_rolling_mean = deaths_rolling_mean.dropna(axis=1, how='all')
     populations = [data_sources.get_population(ccaa) for ccaa in deaths_rolling_mean.index]
     deaths_rolling_mean = deaths_rolling_mean.divide(populations, axis=0) * 1e5
-    html += _create_js_chart(deaths_rolling_mean, date_range=date_range,
-                             js_function_name=js_function_names[key],
-                             div_id=div_ids[key],
-                             title=titles[key],
-                             width=width,
-                             height=height)
 
+    table, _, _ = _create_table_for_chart_from_dframe(deaths_rolling_mean)
+    html += material_line_chart.create_chart_js_with_slider(js_function_names[key],
+                                                            slider_config,
+                                                            div_ids[key],
+                                                            title=titles[key],
+                                                            columns=columns,
+                                                            data_table=table,
+                                                            sizes=js_sizes)
 
     html += '    </script>\n  </head>\n  <body>\n'
-
     today = datetime.datetime.now()
     html += f'<p>Informe generado el día: {today.day}-{today.month}-{today.year}</p>'
 
@@ -189,18 +247,13 @@ def write_html_report(fname, date_range=None):
     html += _write_table_from_series(death_rate)
 
     html += f"<p>{DESCRIPTIONS['incidencia_acumulada']}</p>\n"
-    html += f'<div id="{div_id_accumulated_cases}" style="width: {width}px; height: {height}px"></div>\n'
 
-    for key in used_rolling_means:
+    html += material_line_chart.create_chart_with_slider_divs(div_ids_accumulated_cases,
+                                                              sizes=div_sizes)
+    for key in ['deceased', 'hospitalized']:
         html += f"<p>{DESCRIPTIONS[key]}</p>\n"
-        div_id = div_ids[key]
-        html += f'<div id="{div_id}" style="width: {width}px; height: {height}px"></div>\n'
-
-    key = 'deceased'
-    html += f"<p>{DESCRIPTIONS[key]}</p>\n"
-    div_id = div_ids[key]
-    html += f'<div id="{div_id}" style="width: {width}px; height: {height}px"></div>\n'
-
+        html += material_line_chart.create_chart_with_slider_divs(div_ids[key],
+                                                                sizes=div_sizes)
 
     html += '  </body>\n</html>'
 
@@ -213,6 +266,4 @@ if __name__ == '__main__':
     forty_days_ago = datetime.datetime.now() - datetime.timedelta(days=40)
     first_date = datetime.datetime(2020, 9, 1)
 
-    write_html_report('situacion_covid_por_ca_ultimo_mes.html', date_range=[forty_days_ago, ten_days_ago])
-    write_html_report('situacion_covid_por_ca.html')
-
+    write_html_report('situacion_covid_por_ca.html', date_range=[forty_days_ago, ten_days_ago])
