@@ -206,7 +206,10 @@ def write_html_report(fname, date_range=None):
     dframe = rolling_means['hospitalized']
     populations = [data_sources.get_population(ccaa) for ccaa in dframe.index]
     dframe = dframe.divide(populations, axis=0) * 1e5
-    table, _, _ = _create_table_for_chart_from_dframe(dframe)
+    table, ccaas, _ = _create_table_for_chart_from_dframe(dframe)
+    columns = [('date', 'fecha')]
+    columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
+
     key = 'hospitalized'
     html += material_line_chart.create_chart_js_with_slider(js_function_names[key],
                                                             slider_config,
@@ -223,7 +226,10 @@ def write_html_report(fname, date_range=None):
     populations = [data_sources.get_population(ccaa) for ccaa in deaths_rolling_mean.index]
     deaths_rolling_mean = deaths_rolling_mean.divide(populations, axis=0) * 1e5
 
-    table, _, _ = _create_table_for_chart_from_dframe(deaths_rolling_mean)
+    table, ccaas, _ = _create_table_for_chart_from_dframe(deaths_rolling_mean)
+    columns = [('date', 'fecha')]
+    columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
+
     html += material_line_chart.create_chart_js_with_slider(js_function_names[key],
                                                             slider_config,
                                                             div_ids[key],
@@ -235,6 +241,9 @@ def write_html_report(fname, date_range=None):
     html += '    </script>\n  </head>\n  <body>\n'
     today = datetime.datetime.now()
     html += f'<p>Informe generado el día: {today.day}-{today.month}-{today.year}</p>'
+
+    html += f'<p>Este informe está generado para uso personal por <a href="https://twitter.com/jblanca42">@jblanca42</a>, pero lo sube a la web por si le pudiese ser de utilidad a alguien más.</p>'
+    html += f'<p>El código utilizado para generarlo se encuentra en <a href="https://github.com/JoseBlanca/seguimiento_covid">github</a>, si encuentras algún fallo o quieres mejorar algo envía un mensaje o haz un pull request.</p>'
 
     tot_deaths = deaths['dframe'].values.sum() + deaths['unassinged_deaths']
     html += f'<p>Número total de fallecidos: {tot_deaths}</p>'
@@ -253,7 +262,7 @@ def write_html_report(fname, date_range=None):
     for key in ['deceased', 'hospitalized']:
         html += f"<p>{DESCRIPTIONS[key]}</p>\n"
         html += material_line_chart.create_chart_with_slider_divs(div_ids[key],
-                                                                sizes=div_sizes)
+                                                                  sizes=div_sizes)
 
     html += '  </body>\n</html>'
 
