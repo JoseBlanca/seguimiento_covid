@@ -8,7 +8,7 @@ import numpy
 import pandas
 
 import data_sources
-from data_sources import POPULATION
+from data_sources import POPULATION, convert_to_ccaa_iso
 import material_line_chart
 import ministry_datasources
 
@@ -30,7 +30,7 @@ HEADER2 = '''<html>
 '''
 
 DESCRIPTIONS = {
-'incidencia_acumulada': 'Número de casos detectados en los 15 días anteriores por cien mil habitantes. Datos obtenidos de los informes del Carlos III.',
+'incidencia_acumulada': 'Número de casos informados en los 15 días anteriores por cien mil habitantes. Datos obtenidos de los informes del Carlos III.',
 'hospitalized': 'Número medio de hospitalizaciones por cien mil habitantes (media de 7 días). Datos obtenidos a partir de las cifras acumuladas que aparecen en los informes diarios del ministerio.',
 'deceased': 'Número medio de fallecidos por cien mil habitantes (media de 7 días). Datos obtenidos a partir del excel con datos de fallecidos diarios del ministerio.',
 }
@@ -43,7 +43,6 @@ def calc_accumulated_indicende_per_ccaa(report, num_days=15):
     ccaa_column = data_sources.get_ccaa_column_in_index(num_cases.index)
     index = num_cases.index.to_frame(index=False)
 
-    dates = index['fecha']
     time_delta = numpy.timedelta64(num_days, 'D')
 
     accumulated_cases_by_ccaa = {}
@@ -103,10 +102,16 @@ def _write_table_from_series(series):
     return html
 
 
-def _create_table_for_chart_from_dict(dict_data):
+def is_desired_ccaa(ccaa, desired_ccaas):
+    return desired_ccaas is None or data_sources.convert_to_ccaa_iso(ccaa) in desired_ccaas
+
+
+def _create_table_for_chart_from_dict(dict_data, desired_ccaas):
     one_data = list(dict_data.values())[0]
 
     ccaas = sorted(dict_data.keys())
+    ccaas = [ccaa for ccaa in ccaas if is_desired_ccaa(ccaa, desired_ccaas)]
+
     dates = list(one_data.index)
     table = []
     for date in dates:
@@ -117,9 +122,10 @@ def _create_table_for_chart_from_dict(dict_data):
     return table, ccaas, dates
 
 
-def _create_table_for_chart_from_dframe(dframe):
+def _create_table_for_chart_from_dframe(dframe, desired_ccaas):
 
     ccaas = sorted(dframe.index)
+    ccaas = [ccaa for ccaa in ccaas if is_desired_ccaa(ccaa, desired_ccaas)]
     dates = list(dframe.columns)
     table = []
     for date in dates:
@@ -130,7 +136,7 @@ def _create_table_for_chart_from_dframe(dframe):
     return table, ccaas, dates
 
 
-def write_html_report(fname, date_range=None):
+def write_html_report(out_path, date_range=None, desired_ccaas=None):
 
     ccaa_info = data_sources.get_sorted_downloaded_ccaa_info()
     report = ccaa_info[-1]
@@ -139,14 +145,13 @@ def write_html_report(fname, date_range=None):
     deaths = sorted(ministry_datasources.read_deceased_excel_ministry_files(),
                     key=lambda x: x['max_date'])[-1]
 
-    accumulated_incidence_table, ccaas, dates = _create_table_for_chart_from_dict(accumulaed_incidence)
+    accumulated_incidence_table, ccaas, dates = _create_table_for_chart_from_dict(accumulaed_incidence, desired_ccaas)
 
-    out_path = config.PLOT_DIR / fname
     html = HEADER
 
     js_function_name = 'drawAccumulatedCasesIncidence'
     columns = [('date', 'fecha')]
-    columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
+    columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas if is_desired_ccaa(ccaa, desired_ccaas)])
     title = 'Indicencia acumulada por 100.000 hab. (15 días)'
 
     width =900
@@ -206,13 +211,18 @@ def write_html_report(fname, date_range=None):
     dframe = rolling_means['hospitalized']
     populations = [data_sources.get_population(ccaa) for ccaa in dframe.index]
     dframe = dframe.divide(populations, axis=0) * 1e5
-    table, ccaas, _ = _create_table_for_chart_from_dframe(dframe)
+    table, ccaas, _ = _create_table_for_chart_from_dframe(dframe, desired_ccaas)
     columns = [('date', 'fecha')]
     columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
 
     key = 'hospitalized'
+    hospitalized_slider_config = {'column_controlled': 'fecha',
+                                   'min_value': dates[0],
+                                   'max_value': dates[-1],
+                                   'min_init_value': date_range[0],
+                                   'max_init_value': datetime.datetime.now()}
     html += material_line_chart.create_chart_js_with_slider(js_function_names[key],
-                                                            slider_config,
+                                                            hospitalized_slider_config,
                                                             div_ids[key],
                                                             title=titles[key],
                                                             columns=columns,
@@ -226,7 +236,7 @@ def write_html_report(fname, date_range=None):
     populations = [data_sources.get_population(ccaa) for ccaa in deaths_rolling_mean.index]
     deaths_rolling_mean = deaths_rolling_mean.divide(populations, axis=0) * 1e5
 
-    table, ccaas, _ = _create_table_for_chart_from_dframe(deaths_rolling_mean)
+    table, ccaas, _ = _create_table_for_chart_from_dframe(deaths_rolling_mean, desired_ccaas)
     columns = [('date', 'fecha')]
     columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
 
@@ -245,15 +255,23 @@ def write_html_report(fname, date_range=None):
     html += f'<p>Este informe está generado para uso personal por <a href="https://twitter.com/jblanca42">@jblanca42</a>, pero lo sube a la web por si le pudiese ser de utilidad a alguien más.</p>'
     html += f'<p>El código utilizado para generarlo se encuentra en <a href="https://github.com/JoseBlanca/seguimiento_covid">github</a>, si encuentras algún fallo o quieres mejorar algo envía un mensaje o haz un pull request.</p>'
 
-    tot_deaths = deaths['dframe'].values.sum() + deaths['unassinged_deaths']
+    if desired_ccaas:
+        index = [ccaa for ccaa in deaths['dframe'].index if is_desired_ccaa(ccaa, desired_ccaas)]
+        tot_deaths = deaths['dframe'].loc[index, :].values.sum()
+    else:
+        tot_deaths = deaths['dframe'].values.sum() + deaths['unassinged_deaths']
     html += f'<p>Número total de fallecidos: {tot_deaths}</p>'
 
-    deaths_per_ccaa = deaths['dframe'].sum(axis=1)
-    populations = [data_sources.get_population(ccaa) for ccaa in deaths_per_ccaa.index]
-    populations = pandas.Series(populations, index=deaths_per_ccaa.index)
-    death_rate = (populations / deaths_per_ccaa).round().sort_values().astype(int)
-    html += '<p>¿Una de cada cuántas personas han fallecido por comunidad autónoma?</p>'
-    html += _write_table_from_series(death_rate)
+    if desired_ccaas and len(desired_ccaas) == 1:
+        death_rate = round(data_sources.get_population(desired_ccaas[0]) / tot_deaths)
+        html += f'<p>Una de cada {death_rate} personas han fallecido en esta comunidad autónoma.</p>'        
+    else:
+        deaths_per_ccaa = deaths['dframe'].sum(axis=1)
+        populations = [data_sources.get_population(ccaa) for ccaa in deaths_per_ccaa.index]
+        populations = pandas.Series(populations, index=deaths_per_ccaa.index)
+        death_rate = (populations / deaths_per_ccaa).round().sort_values().astype(int)
+        html += '<p>¿Una de cada cuántas personas han fallecido por comunidad autónoma?</p>'
+        html += _write_table_from_series(death_rate)
 
     html += f"<p>{DESCRIPTIONS['incidencia_acumulada']}</p>\n"
 
@@ -275,4 +293,7 @@ if __name__ == '__main__':
     forty_days_ago = datetime.datetime.now() - datetime.timedelta(days=40)
     first_date = datetime.datetime(2020, 9, 1)
 
-    write_html_report('situacion_covid_por_ca.html', date_range=[forty_days_ago, ten_days_ago])
+    out_dir = config.HTML_REPORTS_DIR
+    out_dir.mkdir(exist_ok=True)
+    out_path = out_dir / 'situacion_covid_por_ca.html'
+    write_html_report(out_path, date_range=[forty_days_ago, ten_days_ago])

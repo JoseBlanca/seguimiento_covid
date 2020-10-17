@@ -6,6 +6,7 @@ HOME_DIR = Path.home()
 BASE_DIR = HOME_DIR / 'devel/covid_situation/'
 
 PLOT_DIR = BASE_DIR / 'plots'
+HTML_REPORTS_DIR = BASE_DIR / 'reports'
 
 DOWNLOADS_DIR = BASE_DIR / 'downloaded_reports'
 
