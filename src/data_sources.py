@@ -135,9 +135,7 @@ def get_downloaded_ccaa_info():
         yield get_ccaa_dataset(path, ccaa_column='ccaa_iso')
 
 
-def get_sorted_downloaded_ccaa_info(filter_out_reports_with_same_max_date=True):
-    reports = get_downloaded_ccaa_info()
-
+def _get_sorted_reports(reports, filter_out_reports_with_same_max_date):
     if filter_out_reports_with_same_max_date:
         dates = set()
         flt_reports = []
@@ -149,6 +147,11 @@ def get_sorted_downloaded_ccaa_info(filter_out_reports_with_same_max_date=True):
         reports = flt_reports
 
     return sorted(reports, key=lambda x: x['max_date'])
+
+
+def get_sorted_downloaded_ccaa_info(filter_out_reports_with_same_max_date=True):
+    reports = get_downloaded_ccaa_info()
+    return _get_sorted_reports(reports, filter_out_reports_with_same_max_date)
 
 
 def get_ccaa_column_in_index(index):

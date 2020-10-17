@@ -15,6 +15,7 @@ import xlrd
 from pdfminer import high_level
 import tabula
 
+import data_sources
 
 COL_NAMES = ['hospitalizacion_total', 'hospitalizacion_7_dias',
              'uci_total', 'uci_7_dias',
@@ -147,7 +148,6 @@ def _parse_report_1(pdf_path):
     assert all(ccaas)
     assert ccaas[0] == 'Andalucía'
     assert ccaas[-1] == 'La Rioja'
-
 
     if 'Tabla 3. PCR procesadas' in text:
         columns = _extract_number_columns(text, 'ESPA', 'CCAA')
@@ -388,12 +388,17 @@ def read_deceased_excel_ministry_files():
         dframe = dframe.reindex(list(dframe.index)[:-1])
         last_date = dframe.columns[-1]
         unassinged_deaths = _read_deaths_to_assing(path)
-        yield {'dframe': dframe, 'last_date': last_date, 'unassinged_deaths': unassinged_deaths}
+        yield {'dframe': dframe, 'max_date': last_date, 'unassinged_deaths': unassinged_deaths}
+
+
+def get_sorted_deceased_excel_ministry_files(filter_out_reports_with_same_max_date=True):
+    reports = read_deceased_excel_ministry_files()
+    return data_sources._get_sorted_reports(reports, filter_out_reports_with_same_max_date)
 
 
 if __name__ == '__main__':
 
-    read_deceased_excel_ministry_files()
+    print(get_sorted_deceased_excel_ministry_files())
 
     assert False
     #report_paths = get_ministry_valid_reports()
