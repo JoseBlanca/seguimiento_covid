@@ -137,7 +137,7 @@ def write_html_report(fname, date_range=None):
     accumulaed_incidence = calc_accumulated_indicende_per_ccaa(report)
 
     deaths = sorted(ministry_datasources.read_deceased_excel_ministry_files(),
-                    key=lambda x: x['last_date'])[-1]
+                    key=lambda x: x['max_date'])[-1]
 
     accumulated_incidence_table, ccaas, dates = _create_table_for_chart_from_dict(accumulaed_incidence)
 
