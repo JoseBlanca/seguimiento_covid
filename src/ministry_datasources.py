@@ -372,6 +372,21 @@ def get_ministry_rolling_mean(num_days=7):
     return rolling_means
 
 
+def get_ministry_rolling_mean_spa(num_days=7):
+
+    incr_data = get_ministry_incremental_data()
+
+    rolling_means = {}
+    for key, this_incr_data in incr_data.items():
+        this_incr_data = this_incr_data.sum(axis=0)
+
+        rolling_mean = this_incr_data.rolling(num_days, center=True, min_periods=num_days).mean()
+        rolling_mean = rolling_mean.dropna()
+        assert not rolling_mean.isnull().values.any()
+        rolling_means[key] = rolling_mean
+    return rolling_means
+
+
 def _read_deaths_to_assing(path):
     sheet = xlrd.open_workbook(path).sheet_by_index(0)
     text = str(sheet.cell(sheet.nrows - 1, 0))

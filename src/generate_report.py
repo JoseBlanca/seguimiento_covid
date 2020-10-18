@@ -15,25 +15,28 @@ import ministry_datasources
 
 HEADER = '''<html>
   <head>
+    <title>{}</title>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript">
+'''
+
+HEADER2 = '''
       google.charts.load('current', {'packages':['line', 'corechart', 'controls']});
 
 '''
 
-HEADER2 = '''<html>
-  <head>
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script type="text/javascript">
-      google.charts.load('current', {'packages':['corechart', 'controls']});
 
-'''
-
-DESCRIPTIONS = {
+DESCRIPTIONS_CCAA = {
 'incidencia_acumulada': 'Número de casos informados en los 15 días anteriores por cien mil habitantes. Datos obtenidos de los informes del Carlos III.',
 'hospitalized': 'Número medio de hospitalizaciones por cien mil habitantes (media de 7 días). Datos obtenidos a partir de las cifras acumuladas que aparecen en los informes diarios del ministerio.',
 'deceased': 'Número medio de fallecidos por cien mil habitantes (media de 7 días). Datos obtenidos a partir del excel con datos de fallecidos diarios del ministerio.',
 }
+DESCRIPTIONS_SPA = {
+'incidencia_acumulada': 'Número de casos informados en los 15 días anteriores por cien mil habitantes. Datos obtenidos de los informes del Carlos III.',
+'hospitalized': 'Número medio de hospitalizaciones (media de 7 días). Datos obtenidos a partir de las cifras acumuladas que aparecen en los informes diarios del ministerio.',
+'deceased': 'Número medio de fallecidos (media de 7 días). Datos obtenidos a partir del excel con datos de fallecidos diarios del ministerio.',
+}
+DESCRIPTIONS = {True: DESCRIPTIONS_SPA, False: DESCRIPTIONS_CCAA}
 
 
 def calc_accumulated_indicende_per_ccaa(report, num_days=15):
@@ -122,6 +125,32 @@ def _create_table_for_chart_from_dict(dict_data, desired_ccaas):
     return table, ccaas, dates
 
 
+def _create_accumulate_indicence_table_for_spa_chart_from_report(report, num_days):
+    dframe = report['dframe']
+    time_delta = numpy.timedelta64(num_days, 'D')
+
+    num_cases = dframe.groupby(level=1).sum().loc[:, 'num_casos']
+
+    tot_pop = sum(data_sources.POPULATION.values())
+    dates = numpy.array(num_cases.index)
+    num_accumulated_cases = []
+    valid_dates = []
+    for date in dates:
+        date0 = date - time_delta
+        mask = numpy.logical_and(dates > date0,
+                                 dates <= date)
+        if numpy.sum(mask) < num_days:
+            continue
+        num_accumulated_cases.append(numpy.sum(num_cases[mask]) / tot_pop * 1e5)
+        date = datetime.datetime.fromtimestamp(date.astype('O') / 1e9)
+        valid_dates.append(date)
+
+    table = [(date.date(), cases) for date, cases in zip(valid_dates, num_accumulated_cases)]
+    dates = valid_dates
+
+    return table, dates
+
+
 def _create_table_for_chart_from_dframe(dframe, desired_ccaas):
 
     ccaas = sorted(dframe.index)
@@ -136,7 +165,21 @@ def _create_table_for_chart_from_dframe(dframe, desired_ccaas):
     return table, ccaas, dates
 
 
-def write_html_report(out_path, date_range=None, desired_ccaas=None):
+def _create_table_for_chart_from_series(series):
+    table = [(date.date(), value) for date, value in zip(series.index, series.values)]
+    return table
+
+
+def write_html_report(out_path, date_range=None, desired_ccaas=None, spa_report=False):
+
+    if spa_report and desired_ccaas:
+        raise ValueError('choose one, either spa or ccaa report')
+
+    if desired_ccaas and len(desired_ccaas) == 1:
+        only_one_ccaa = True
+        ccaa_iso = convert_to_ccaa_iso(desired_ccaas[0])
+    else:
+        only_one_ccaa = False
 
     ccaa_info = data_sources.get_sorted_downloaded_ccaa_info()
     report = ccaa_info[-1]
@@ -145,13 +188,27 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None):
     deaths = sorted(ministry_datasources.read_deceased_excel_ministry_files(),
                     key=lambda x: x['max_date'])[-1]
 
-    accumulated_incidence_table, ccaas, dates = _create_table_for_chart_from_dict(accumulaed_incidence, desired_ccaas)
+    if spa_report:
+        accumulated_incidence_table, dates = _create_accumulate_indicence_table_for_spa_chart_from_report(report, 15)
+    else:
+        accumulated_incidence_table, ccaas, dates = _create_table_for_chart_from_dict(accumulaed_incidence, desired_ccaas)
 
-    html = HEADER
+    title = 'Resumen situación Covid-19'
+    if spa_report:
+        title += ' España'
+    elif only_one_ccaa:
+        title += ': ' + data_sources.convert_to_ccaa_name(ccaa_iso)
+    else:
+        title += ' por comunidad autónoma'
+    html = HEADER.format(title)
+    html += HEADER2
 
     js_function_name = 'drawAccumulatedCasesIncidence'
     columns = [('date', 'fecha')]
-    columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas if is_desired_ccaa(ccaa, desired_ccaas)])
+    if spa_report:
+        columns.extend([('number', 'España')])
+    else:
+        columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas if is_desired_ccaa(ccaa, desired_ccaas)])
     title = 'Indicencia acumulada por 100.000 hab. (15 días)'
 
     width =900
@@ -196,7 +253,19 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None):
               'deceased': 'Num. fallecidos por 100.000 hab. (media 7 días)'
               }
 
-    rolling_means = ministry_datasources.get_ministry_rolling_mean()
+    if spa_report:
+        rolling_means = ministry_datasources.get_ministry_rolling_mean_spa()
+        titles = {'hospitalized': 'Num. hospitalizaciones. (media 7 días)',
+                  'icu': 'Num. ingresos UCI. (media 7 días)',
+                  'deceased': 'Num. fallecidos. (media 7 días)'
+                  }
+    else:
+        rolling_means = ministry_datasources.get_ministry_rolling_mean()
+        titles = {'hospitalized': 'Num. hospitalizaciones por 100.000 hab. (media 7 días)',
+                  'icu': 'Num. ingresos UCI por 100.000 hab. (media 7 días)',
+                  'deceased': 'Num. fallecidos por 100.000 hab. (media 7 días)'
+                  }
+
 
     div_ids_hospitalized = {'dashboard': 'hospitalized_dashboard',
                             'chart': 'hospitalized_chart',
@@ -209,11 +278,15 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None):
               }
 
     dframe = rolling_means['hospitalized']
-    populations = [data_sources.get_population(ccaa) for ccaa in dframe.index]
-    dframe = dframe.divide(populations, axis=0) * 1e5
-    table, ccaas, _ = _create_table_for_chart_from_dframe(dframe, desired_ccaas)
-    columns = [('date', 'fecha')]
-    columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
+    if spa_report:
+        columns = [('date', 'fecha'), ('number', 'España')]
+        table = _create_table_for_chart_from_series(dframe)
+    else:
+        populations = [data_sources.get_population(ccaa) for ccaa in dframe.index]
+        dframe = dframe.divide(populations, axis=0) * 1e5
+        table, ccaas, _ = _create_table_for_chart_from_dframe(dframe, desired_ccaas)
+        columns = [('date', 'fecha')]
+        columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
 
     key = 'hospitalized'
     hospitalized_slider_config = {'column_controlled': 'fecha',
@@ -231,14 +304,21 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None):
 
     num_days = 7
     key = 'deceased'
-    deaths_rolling_mean = deaths['dframe'].rolling(num_days, center=True, min_periods=num_days, axis=1).mean()
-    deaths_rolling_mean = deaths_rolling_mean.dropna(axis=1, how='all')
-    populations = [data_sources.get_population(ccaa) for ccaa in deaths_rolling_mean.index]
-    deaths_rolling_mean = deaths_rolling_mean.divide(populations, axis=0) * 1e5
+    deaths_dframe = deaths['dframe']
+    if spa_report:
+        spa_deaths = deaths_dframe.sum(axis=0)
+        deaths_rolling_mean = spa_deaths.rolling(num_days, center=True, min_periods=num_days).mean().dropna()
+        table = _create_table_for_chart_from_series(deaths_rolling_mean)
+        columns = [('date', 'fecha'), ('number', 'España')]
+    else:
+        deaths_rolling_mean = deaths_dframe.rolling(num_days, center=True, min_periods=num_days, axis=1).mean()
+        deaths_rolling_mean = deaths_rolling_mean.dropna(axis=1, how='all')
+        populations = [data_sources.get_population(ccaa) for ccaa in deaths_rolling_mean.index]
+        deaths_rolling_mean = deaths_rolling_mean.divide(populations, axis=0) * 1e5
 
-    table, ccaas, _ = _create_table_for_chart_from_dframe(deaths_rolling_mean, desired_ccaas)
-    columns = [('date', 'fecha')]
-    columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
+        table, ccaas, _ = _create_table_for_chart_from_dframe(deaths_rolling_mean, desired_ccaas)
+        columns = [('date', 'fecha')]
+        columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
 
     html += material_line_chart.create_chart_js_with_slider(js_function_names[key],
                                                             slider_config,
@@ -250,6 +330,7 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None):
 
     html += '    </script>\n  </head>\n  <body>\n'
     today = datetime.datetime.now()
+    html += '<p><a href="../">Menu</a></p>'
     html += f'<p>Informe generado el día: {today.day}-{today.month}-{today.year}</p>'
 
     html += f'<p>Este informe está generado para uso personal por <a href="https://twitter.com/jblanca42">@jblanca42</a>, pero lo sube a la web por si le pudiese ser de utilidad a alguien más.</p>'
@@ -262,9 +343,12 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None):
         tot_deaths = deaths['dframe'].values.sum() + deaths['unassinged_deaths']
     html += f'<p>Número total de fallecidos: {tot_deaths}</p>'
 
-    if desired_ccaas and len(desired_ccaas) == 1:
+    if spa_report:
+        death_rate = round(sum(data_sources.POPULATION.values()) / tot_deaths)
+        html += f'<p>Una de cada {death_rate} personas han fallecido.</p>'
+    elif desired_ccaas and len(desired_ccaas) == 1:
         death_rate = round(data_sources.get_population(desired_ccaas[0]) / tot_deaths)
-        html += f'<p>Una de cada {death_rate} personas han fallecido en esta comunidad autónoma.</p>'        
+        html += f'<p>Una de cada {death_rate} personas han fallecido en esta comunidad autónoma.</p>'
     else:
         deaths_per_ccaa = deaths['dframe'].sum(axis=1)
         populations = [data_sources.get_population(ccaa) for ccaa in deaths_per_ccaa.index]
@@ -273,12 +357,12 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None):
         html += '<p>¿Una de cada cuántas personas han fallecido por comunidad autónoma?</p>'
         html += _write_table_from_series(death_rate)
 
-    html += f"<p>{DESCRIPTIONS['incidencia_acumulada']}</p>\n"
+    html += f"<p>{DESCRIPTIONS[spa_report]['incidencia_acumulada']}</p>\n"
 
     html += material_line_chart.create_chart_with_slider_divs(div_ids_accumulated_cases,
                                                               sizes=div_sizes)
     for key in ['deceased', 'hospitalized']:
-        html += f"<p>{DESCRIPTIONS[key]}</p>\n"
+        html += f"<p>{DESCRIPTIONS[spa_report][key]}</p>\n"
         html += material_line_chart.create_chart_with_slider_divs(div_ids[key],
                                                                   sizes=div_sizes)
 
