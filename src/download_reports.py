@@ -69,7 +69,18 @@ def download_provices_carlos_iii_csv():
     download_daily_file(CARLOS_III_PROVICE_DATA_URL,
                         config.PROVINCE_CSV_DIR)
 
+
+def download_carlos_iii_reports():
+    url = 'https://www.isciii.es/QueHacemos/Servicios/VigilanciaSaludPublicaRENAVE/EnfermedadesTransmisibles/Paginas/InformesCOVID-19.aspx'
+
+    print(f'recuerda mirar el informe del carlos iii: {url}')
+
+
 if __name__ == '__main__':
+    print('bajar esto')
+    print('https://www.isciii.es/QueHacemos/Servicios/VigilanciaSaludPublicaRENAVE/EnfermedadesTransmisibles/Paginas/-COVID-19.-Informes-previos.aspx')
+    print('https://www.isciii.es/QueHacemos/Servicios/VigilanciaSaludPublicaRENAVE/EnfermedadesTransmisibles/Paginas/InformesCOVID-19.aspx')
+    download_carlos_iii_reports()
     download_ministry_reports()
     download_deceased_ministry_excel()
     download_ccaa_carlos_iii_csv()

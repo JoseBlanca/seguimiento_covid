@@ -17,3 +17,5 @@ PROVINCE_CSV_DIR = DOWNLOADS_DIR / 'carlos_iii_province_csvs'
 
 MINISTRY_REPORTS_TO_SKIP = ['Actualizacion_137_COVID-19']
 CACHE_DIR = BASE_DIR / 'caches'
+
+CARLOS_III_REPORTS_BASE_URL = 'https://www.isciii.es/QueHacemos/Servicios/VigilanciaSaludPublicaRENAVE/EnfermedadesTransmisibles/Documents/INFORMES/Informes%20COVID-19/'
