@@ -77,9 +77,6 @@ def download_carlos_iii_reports():
 
 
 if __name__ == '__main__':
-    print('bajar esto')
-    print('https://www.isciii.es/QueHacemos/Servicios/VigilanciaSaludPublicaRENAVE/EnfermedadesTransmisibles/Paginas/-COVID-19.-Informes-previos.aspx')
-    print('https://www.isciii.es/QueHacemos/Servicios/VigilanciaSaludPublicaRENAVE/EnfermedadesTransmisibles/Paginas/InformesCOVID-19.aspx')
     download_carlos_iii_reports()
     download_ministry_reports()
     download_deceased_ministry_excel()
