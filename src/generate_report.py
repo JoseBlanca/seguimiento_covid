@@ -357,11 +357,16 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None, spa_report=
         html += '<p>¿Una de cada cuántas personas han fallecido por comunidad autónoma?</p>'
         html += _write_table_from_series(death_rate)
 
+    for key in ['hospitalized']:
+        html += f"<p>{DESCRIPTIONS[spa_report][key]}</p>\n"
+        html += material_line_chart.create_chart_with_slider_divs(div_ids[key],
+                                                                  sizes=div_sizes)
+
     html += f"<p>{DESCRIPTIONS[spa_report]['incidencia_acumulada']}</p>\n"
 
     html += material_line_chart.create_chart_with_slider_divs(div_ids_accumulated_cases,
                                                               sizes=div_sizes)
-    for key in ['deceased', 'hospitalized']:
+    for key in ['deceased']:
         html += f"<p>{DESCRIPTIONS[spa_report][key]}</p>\n"
         html += material_line_chart.create_chart_with_slider_divs(div_ids[key],
                                                                   sizes=div_sizes)
