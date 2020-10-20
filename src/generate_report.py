@@ -266,7 +266,6 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None, spa_report=
                   'deceased': 'Num. fallecidos por 100.000 hab. (media 7 días)'
                   }
 
-
     div_ids_hospitalized = {'dashboard': 'hospitalized_dashboard',
                             'chart': 'hospitalized_chart',
                             'rangeslider': 'hospitalized_rangeslider'}
