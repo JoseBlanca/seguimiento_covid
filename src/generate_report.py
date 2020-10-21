@@ -209,7 +209,7 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None, spa_report=
         columns.extend([('number', 'España')])
     else:
         columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas if is_desired_ccaa(ccaa, desired_ccaas)])
-    title = 'Indicencia acumulada por 100.000 hab. (15 días)'
+    title = 'Incidencia acumulada por 100.000 hab. (15 días)'
 
     width =900
     height = 800
