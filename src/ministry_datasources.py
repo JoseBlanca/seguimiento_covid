@@ -201,7 +201,13 @@ def parse_report(path):
         new_report = False
     else:
         report_num = int(path.stem.split('_')[1])
-        if report_num >= 231:
+        if report_num >= 234:
+            left = 80
+            width = 810
+            height = 450
+            top = 170
+            report = _parse_report_2(path, left, width, top, height)
+        elif report_num >= 231:
             left = 80
             width = 810
             height = 450
