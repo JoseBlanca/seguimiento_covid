@@ -253,17 +253,18 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None, spa_report=
               'deceased': 'Num. fallecidos por 100.000 hab. (media 7 días)'
               }
 
-    if spa_report:
-        rolling_means = ministry_datasources.get_ministry_rolling_mean_spa()
-        titles = {'hospitalized': 'Num. hospitalizaciones. (media 7 días)',
-                  'icu': 'Num. ingresos UCI. (media 7 días)',
-                  'deceased': 'Num. fallecidos. (media 7 días)'
-                  }
-    else:
-        rolling_means = ministry_datasources.get_ministry_rolling_mean()
-        titles = {'hospitalized': 'Num. hospitalizaciones por 100.000 hab. (media 7 días)',
-                  'icu': 'Num. ingresos UCI por 100.000 hab. (media 7 días)',
-                  'deceased': 'Num. fallecidos por 100.000 hab. (media 7 días)'
+    if False:
+        if spa_report:
+            rolling_means = ministry_datasources.get_ministry_rolling_mean_spa()
+            titles = {'hospitalized': 'Num. hospitalizaciones. (media 7 días)',
+                    'icu': 'Num. ingresos UCI. (media 7 días)',
+                    'deceased': 'Num. fallecidos. (media 7 días)'
+                    }
+        else:
+            rolling_means = ministry_datasources.get_ministry_rolling_mean()
+            titles = {'hospitalized': 'Num. hospitalizaciones por 100.000 hab. (media 7 días)',
+                    'icu': 'Num. ingresos UCI por 100.000 hab. (media 7 días)',
+                    'deceased': 'Num. fallecidos por 100.000 hab. (media 7 días)'
                   }
 
     div_ids_hospitalized = {'dashboard': 'hospitalized_dashboard',
@@ -276,30 +277,31 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None, spa_report=
                'deceased': div_ids_deceased,
               }
 
-    dframe = rolling_means['hospitalized']
-    if spa_report:
-        columns = [('date', 'fecha'), ('number', 'España')]
-        table = _create_table_for_chart_from_series(dframe)
-    else:
-        populations = [data_sources.get_population(ccaa) for ccaa in dframe.index]
-        dframe = dframe.divide(populations, axis=0) * 1e5
-        table, ccaas, _ = _create_table_for_chart_from_dframe(dframe, desired_ccaas)
-        columns = [('date', 'fecha')]
-        columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
+    if False:
+        dframe = rolling_means['hospitalized']
+        if spa_report:
+            columns = [('date', 'fecha'), ('number', 'España')]
+            table = _create_table_for_chart_from_series(dframe)
+        else:
+            populations = [data_sources.get_population(ccaa) for ccaa in dframe.index]
+            dframe = dframe.divide(populations, axis=0) * 1e5
+            table, ccaas, _ = _create_table_for_chart_from_dframe(dframe, desired_ccaas)
+            columns = [('date', 'fecha')]
+            columns.extend([('number', data_sources.convert_to_ccaa_name(ccaa)) for ccaa in ccaas])
 
-    key = 'hospitalized'
-    hospitalized_slider_config = {'column_controlled': 'fecha',
-                                   'min_value': dates[0],
-                                   'max_value': dates[-1],
-                                   'min_init_value': date_range[0],
-                                   'max_init_value': datetime.datetime.now()}
-    html += material_line_chart.create_chart_js_with_slider(js_function_names[key],
-                                                            hospitalized_slider_config,
-                                                            div_ids[key],
-                                                            title=titles[key],
-                                                            columns=columns,
-                                                            data_table=table,
-                                                            sizes=js_sizes)
+        key = 'hospitalized'
+        hospitalized_slider_config = {'column_controlled': 'fecha',
+                                    'min_value': dates[0],
+                                    'max_value': dates[-1],
+                                    'min_init_value': date_range[0],
+                                    'max_init_value': datetime.datetime.now()}
+        html += material_line_chart.create_chart_js_with_slider(js_function_names[key],
+                                                                hospitalized_slider_config,
+                                                                div_ids[key],
+                                                                title=titles[key],
+                                                                columns=columns,
+                                                                data_table=table,
+                                                                sizes=js_sizes)
 
     num_days = 7
     key = 'deceased'
@@ -356,10 +358,11 @@ def write_html_report(out_path, date_range=None, desired_ccaas=None, spa_report=
         html += '<p>¿Una de cada cuántas personas han fallecido por comunidad autónoma?</p>'
         html += _write_table_from_series(death_rate)
 
-    for key in ['hospitalized']:
-        html += f"<p>{DESCRIPTIONS[spa_report][key]}</p>\n"
-        html += material_line_chart.create_chart_with_slider_divs(div_ids[key],
-                                                                  sizes=div_sizes)
+    if False:
+        for key in ['hospitalized']:
+            html += f"<p>{DESCRIPTIONS[spa_report][key]}</p>\n"
+            html += material_line_chart.create_chart_with_slider_divs(div_ids[key],
+                                                                    sizes=div_sizes)
 
     html += f"<p>{DESCRIPTIONS[spa_report]['incidencia_acumulada']}</p>\n"
 

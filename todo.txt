@@ -1,3 +1,5 @@
+En España barras de fallecidos por 100000 habitantes hace una semana
+
 En las de las de cada CCAA podría mostrar la comparación con España
 En la de todas las CCAA podría mostrar barras comparando las situación entre CCAA para cada medida
 correlación IA acumulada calculada con número de ingresos de 15 días (-3 y -2 semanas) y el número de casos detectados (-2, -1) semanas
