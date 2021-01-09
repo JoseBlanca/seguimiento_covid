@@ -10,6 +10,8 @@ MINISTRY_REPORT_BASE_URL = 'https://www.mscbs.gob.es/profesionales/saludPublica/
 MINISTRY_DECEASED_EXCEL_URL = 'https://www.mscbs.gob.es/profesionales/saludPublica/ccayes/alertasActual/nCov-China/documentos/Fallecidos_COVID19.xlsx'
 CARLOS_III_CCAA_DATA_URL = 'https://cnecovid.isciii.es/covid19/resources/datos_ccaas.csv'
 CARLOS_III_PROVICE_DATA_URL = 'https://cnecovid.isciii.es/covid19/resources/datos_provincias.csv'
+CARLOS_III_CCAA_DATA_URL = 'https://cnecovid.isciii.es/covid19/resources/casos_diagnostico_ccaa.csv'
+CARLOS_III_PROVICE_DATA_URL = 'https://cnecovid.isciii.es/covid19/resources/casos_diagnostico_provincia.csv'
 
 
 def mkdir(directory):
