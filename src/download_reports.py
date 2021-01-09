@@ -21,8 +21,9 @@ def mkdir(directory):
 def download_ministry_reports():
     out_dir = config.MINISTRY_REPORTS_DIR
     mkdir(out_dir)
-    for idx in range(31, 10000):
+    for idx in range(50, 10000):
         url = MINISTRY_REPORT_BASE_URL.format(idx)
+        print(url)
         fname = url.split('/')[-1]
         out_path = out_dir / fname
         if out_path.exists():
